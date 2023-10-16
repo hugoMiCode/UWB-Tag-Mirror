@@ -1,6 +1,6 @@
 # Tag
 
-
+Cette carte va dans la voiture RC.
 
 ## Getting started
 
