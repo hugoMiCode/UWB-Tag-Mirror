@@ -42,7 +42,6 @@ Emitter emitter;
 void newRange();
 void newDevice(DW1000Device *device);
 void inactiveDevice(DW1000Device *device);
-void logoshow(void);
 void display_uwb(struct Link *p);
 
 
