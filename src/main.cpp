@@ -6,33 +6,34 @@
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 
-#include "link.h"
-#include "IRReceiver.h"
-#include "emitter.h"
+#include "LinkNode/AnchorLinkNode.h"
+#include "LinkNode/PuceLinkNode.h"
+#include "Emitter.h"
 
 
 #define SERIAL_DEBUG
 
-#define SPI_SCK 18
+#define SPI_SCK  18
 #define SPI_MISO 19
 #define SPI_MOSI 23
 
 #define UWB_RST 27 // reset pin
 #define UWB_IRQ 34 // irq pin
-#define UWB_SS 21  // spi select pin
+#define UWB_SS  21 // spi select pin
 
 #define I2C_SDA 4
 #define I2C_SCL 5
 
 
 #define TAG_ADDR "7D:00:22:EA:82:60:3B:9B"
-#define IR_RECEIVER_PIN 22
+#define IR_RECEIVER_PIN 26
 
 
 
 String all_json = "";
 
-struct Link *uwb_data;
+struct AnchorLinkNode *uwb_data;
+struct PuceLinkNode *ir_data;
 
 Adafruit_SSD1306 display(128, 64, &Wire, -1);
 IRReceiver irReceiver(IR_RECEIVER_PIN);
@@ -42,13 +43,7 @@ Emitter emitter;
 void newRange();
 void newDevice(DW1000Device *device);
 void inactiveDevice(DW1000Device *device);
-void display_uwb(struct Link *p);
-
-
-// temporaire pour tester a remplacer par une structure comme link
-Puce lastPuce = Puce::None;
-int lastLapTime = 0;
-int lastSectorTime = 0;
+void display_uwb(struct AnchorLinkNode *p);
 
 
 void setup()
@@ -82,24 +77,40 @@ void setup()
 
 
 
-    uwb_data = init_link();
+    uwb_data = init_anchorLinkNode();
+    ir_data = init_puceLinkNode();
 
     irReceiver.setupInterrupt();
 
     irReceiver.attachNewStart([]() {
-        lastPuce = Puce::Finish;
-        lastLapTime = 0;
-        lastSectorTime = 0;
+        reset_link(ir_data);
+        add_link(ir_data, Puce::Finish, 0);
     });
 
     irReceiver.attachNewLap([](int temps) {
-        lastPuce = Puce::Finish;
-        lastLapTime = temps;
+        // Il y a "beaucoup" de chose a faire ici
+        // TODO Si un secteur est manquant sur le tour et present dans le link on le supprime
+        // TODO On doit partager les informations avec emitter
+        fresh_link(ir_data, Puce::Finish, temps);
+
+        // On supprime les secteurs qui n'ont pas été détectés
+        uint8_t sectorFlag = irReceiver.getSectorFlag();
+
+        for (uint i = 1; i < 8; i++) {
+            if ((sectorFlag & (1 << i)) == 0) {
+                delete_link(ir_data, Puce(i));
+            }
+        }
     });
 
     irReceiver.attachNewSector([](Puce puce, int temps) {
-        lastPuce = puce;
-        lastSectorTime = temps;
+        // Si la puce n'est pas dans le link on l'ajoute
+        if (find_link(ir_data, puce) == nullptr) {
+            add_link(ir_data, puce, temps);
+            return;
+        }
+
+        fresh_link(ir_data, puce, temps);
     });
 
 
@@ -129,7 +140,7 @@ void loop()
     if ((millis() - runtime) > 200) {
 
         display_uwb(uwb_data);
-        print_link(uwb_data);
+        // print_link(uwb_data);
 
         make_link_json(uwb_data, &all_json);
         
@@ -166,27 +177,25 @@ void inactiveDevice(DW1000Device *device)
 
 // SSD1306
 
-void display_uwb(struct Link *p)
+void display_uwb(struct AnchorLinkNode *p)
 {
-    struct Link *temp = p;
+    struct AnchorLinkNode *tempAnchor = p;
     int row = 0;
 
     display.clearDisplay();
     display.setTextColor(SSD1306_WHITE);
 
-    if (temp->next == NULL) {
-        display.setTextSize(2);
-        display.setCursor(0, 0);
-        display.println("No Anchor");
-        display.display();
-        return;
-    }
+    // if (tempAnchor->next == NULL) {
+    //     display.setTextSize(1);
+    //     display.setCursor(0, row++);
+    //     display.print("No Anchor");
+    // }
 
-    while (temp->next != NULL) {
-        temp = temp->next;
+    while (tempAnchor->next != NULL) {
+        tempAnchor = tempAnchor->next;
 
         char c[30];
-        sprintf(c, "%X  %.2f  %.1f dbm", temp->anchor_addr, temp->range, temp->dbm);
+        sprintf(c, "%X  %.2f  %.1f dbm", tempAnchor->anchor_addr, tempAnchor->range, tempAnchor->dbm);
 
         display.setTextSize(1);
         display.setCursor(0, row++ * 16); // Start at top-left corner
@@ -198,11 +207,22 @@ void display_uwb(struct Link *p)
     }
 
 
-    // pour tester si uwb fonctionne avec le IR
-    display.setTextSize(1);
-    display.setCursor(0, row++ * 16);
-    display.print("Lap: ");
-    display.print(lastLapTime);
+    struct PuceLinkNode *tempPuce = ir_data;
+
+    while (tempPuce->next != NULL) {
+        tempPuce = tempPuce->next;
+
+        char c[30];
+        sprintf(c, "%d  %d", int(tempPuce->puce), tempPuce->time);
+
+        display.setTextSize(1);
+        display.setCursor(0, row++ * 16); // Start at top-left corner
+        display.print(c);
+
+        if (row >= 6) { 
+            break;
+        }
+    }
 
     delay(100);
     display.display();

@@ -15,6 +15,7 @@ uint8_t IRReceiver::bufferPosition;
 bool IRReceiver::puceDetected;
 Puce IRReceiver::pucePassed;
 unsigned long IRReceiver::puceTime;
+uint8_t IRReceiver::sectorFlag;
 
 unsigned long IRReceiver::sectorTime;
 unsigned long IRReceiver::lapTime;
@@ -38,6 +39,7 @@ IRReceiver::IRReceiver(int pinNum) {
     signalBuffer = 0;
     validBuffer = 0;
     bufferPosition = 0b0;
+    sectorFlag = 0b0;
 
     sectorTime = 0;
     lapTime = 0;
@@ -72,6 +74,7 @@ void IRReceiver::setupInterrupt()
             puceDetected = true;
             puceTime = millis();
         }
+        // On gère le cas ou la puce est None dans la loop (on est pas pressé) 
     }, CHANGE);
 
     interruptEnabled = true;
@@ -90,6 +93,11 @@ void IRReceiver::loop()
         return;
 
     puceDetected = false;
+
+    if (pucePassed == Puce::None) {
+        clearBuffer();
+        return;
+    }
 
     // on passe un secteur avant de passer la ligne de départ -> on ne fait rien
     if (pucePassed != Puce::Finish && !isActive) 
@@ -117,13 +125,26 @@ void IRReceiver::loop()
         sectorTime = puceTime;
         lapTime = puceTime;
 
+        // On baisse tous les flags
+        sectorFlag = 0b0;
+
         return;
     }
 
     if (_handleNewSector != nullptr)
         _handleNewSector(pucePassed, puceTime - sectorTime);
 
+    // On lève le flag de la puce qui vient d'être détectée
+    sectorFlag |= (1 << (uint8_t)pucePassed);
+
     sectorTime = puceTime;
+}
+
+void IRReceiver::clearBuffer()
+{
+    signalBuffer = 0;
+    validBuffer = 0;
+    bufferPosition = 0;
 }
 
 void IRReceiver::decodeBitHigh()
@@ -212,9 +233,3 @@ Puce IRReceiver::decodePuceBuffer()
     return Puce::None;
 }
 
-void IRReceiver::clearBuffer()
-{
-    signalBuffer = 0;
-    validBuffer = 0;
-    bufferPosition = 0;
-}

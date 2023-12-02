@@ -2,25 +2,26 @@
 
 
 #define HIGH_SHORT_TIME 250
-#define HIGH_LONG_TIME 500
-#define LOW_SHORT_TIME 250
-#define LOW_LONG_TIME 500
+#define HIGH_LONG_TIME  500
+#define LOW_SHORT_TIME  250
+#define LOW_LONG_TIME   500
 
 #define HIGH_SHORT_BIT 0
-#define HIGH_LONG_BIT 1 
-#define LOW_SHORT_BIT 0
-#define LOW_LONG_BIT 1
+#define HIGH_LONG_BIT  1 
+#define LOW_SHORT_BIT  0
+#define LOW_LONG_BIT   1
 
 #define MIN_SECTOR_TIME_MS 1000
 
 
 enum class Puce{
-  None = 0b11111111,
-  Finish = 0b00,
+  None =    0b11111111,
+  Finish =  0b00,
   Sector1 = 0b01,
   Sector2 = 0b10,
   Sector3 = 0b11
 };
+
 
 class IRReceiver {
 public:
@@ -29,6 +30,10 @@ public:
 
     void setupInterrupt();
     void loop();
+
+    uint8_t getSectorFlag() {
+        return sectorFlag;
+    };
     
 
     static void attachNewStart(void (*handleNewStart)()) {
@@ -45,6 +50,8 @@ public:
 
 
 private:
+    void clearBuffer();
+
     // handler for new puce
     static void (*_handleNewStart)();
     static void (*_handleNewLap)(int);
@@ -55,7 +62,6 @@ private:
     static void decodeBitLow();
     static Puce decodePuceBuffer();
 
-    void clearBuffer();
 
 private:
     static int pinNumber;
@@ -72,6 +78,7 @@ private:
     static bool puceDetected;
     static Puce pucePassed;
     static unsigned long puceTime;
+    static uint8_t sectorFlag;
 
     static unsigned long sectorTime;
     static unsigned long lapTime;
