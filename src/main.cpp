@@ -40,10 +40,8 @@ IRReceiver irReceiver(IR_RECEIVER_PIN);
 Emitter emitter;
 
 
-void newRange();
-void newDevice(DW1000Device *device);
-void inactiveDevice(DW1000Device *device);
 void display_uwb(struct AnchorLinkNode *p);
+void display_ir(struct PuceLinkNode *p);
 
 
 void setup()
@@ -63,13 +61,21 @@ void setup()
     SPI.begin(SPI_SCK, SPI_MISO, SPI_MOSI);
     DW1000Ranging.initCommunication(UWB_RST, UWB_SS, UWB_IRQ); // Reset, CS, IRQ pin
     // define the sketch as anchor. It will be great to dynamically change the type of module
-    DW1000Ranging.attachNewRange(newRange);
-    DW1000Ranging.attachNewDevice(newDevice);
-    DW1000Ranging.attachInactiveDevice(inactiveDevice);
+    DW1000Ranging.attachNewRange([](){
+        fresh_link(uwb_data, DW1000Ranging.getDistantDevice()->getShortAddress(), DW1000Ranging.getDistantDevice()->getRange(), DW1000Ranging.getDistantDevice()->getRXPower());
+    });
+
+    DW1000Ranging.attachNewDevice([](DW1000Device *device){
+        add_link(uwb_data, device->getShortAddress());
+    });
+
+    DW1000Ranging.attachInactiveDevice([](DW1000Device *device){
+        delete_link(uwb_data, device->getShortAddress());
+    });
 
     // we start the module as a tag
-    DW1000Ranging.startAsTag((char*)TAG_ADDR, DW1000.MODE_LONGDATA_RANGE_LOWPOWER);
-    // DW1000Ranging.startAsTag((char*)TAG_ADDR, DW1000.MODE_SHORTDATA_FAST_LOWPOWER);
+    // DW1000Ranging.startAsTag((char*)TAG_ADDR, DW1000.MODE_LONGDATA_RANGE_LOWPOWER);
+    DW1000Ranging.startAsTag((char*)TAG_ADDR, DW1000.MODE_SHORTDATA_FAST_LOWPOWER);
     // DW1000Ranging.startAsTag((char*)TAG_ADDR, DW1000.MODE_LONGDATA_FAST_LOWPOWER);
     // DW1000Ranging.startAsTag((char*)TAG_ADDR, DW1000.MODE_SHORTDATA_FAST_ACCURACY);
     // DW1000Ranging.startAsTag((char*)TAG_ADDR, DW1000.MODE_LONGDATA_FAST_ACCURACY);
@@ -88,8 +94,6 @@ void setup()
     });
 
     irReceiver.attachNewLap([](int temps) {
-        // Il y a "beaucoup" de chose a faire ici
-        // TODO Si un secteur est manquant sur le tour et present dans le link on le supprime
         // TODO On doit partager les informations avec emitter
         fresh_link(ir_data, Puce::Finish, temps);
 
@@ -127,6 +131,9 @@ void setup()
 
 
     display.clearDisplay(); 
+    display.setTextColor(SSD1306_WHITE);
+    display.setCursor(0, 0);
+    display.println("Initialisation");
     display.display();
 }
 
@@ -137,94 +144,96 @@ void loop()
     irReceiver.loop();
     DW1000Ranging.loop();
 
-    if ((millis() - runtime) > 200) {
+    if ((millis() - runtime) > 100) {
 
+        display.clearDisplay();
         display_uwb(uwb_data);
-        // print_link(uwb_data);
+        display_ir(ir_data);
+        // display.drawFastHLine(0, 32, 128, SSD1306_WHITE);
+        // display.drawPixel(64, 20, SSD1306_WHITE);
+        display.display();
 
-        make_link_json(uwb_data, &all_json);
-        
-        emitter.send((char*)all_json.c_str());
+        // print_link(uwb_data);
+        // print_link(ir_data);
+
+        // make_link_json(uwb_data, &all_json);
+        // make_link_json(ir_data, &all_json);
+
+        // emitter.send((char*)all_json.c_str());
 
 
         runtime = millis();
     }
 }
 
-void newRange()
-{
-    fresh_link(uwb_data, DW1000Ranging.getDistantDevice()->getShortAddress(), DW1000Ranging.getDistantDevice()->getRange(), DW1000Ranging.getDistantDevice()->getRXPower());
-}
-
-void newDevice(DW1000Device *device)
-{
-#ifdef SERIAL_DEBUG
-    Serial.print("ranging init; 1 device added ! -> ");
-    Serial.print(" short:");
-    Serial.println(device->getShortAddress(), HEX);
-#endif
-    add_link(uwb_data, device->getShortAddress());
-}
-
-void inactiveDevice(DW1000Device *device)
-{
-#ifdef SERIAL_DEBUG
-    Serial.print("delete inactive device: ");
-    Serial.println(device->getShortAddress(), HEX);
-#endif
-    delete_link(uwb_data, device->getShortAddress());
-}
 
 // SSD1306
 
 void display_uwb(struct AnchorLinkNode *p)
 {
     struct AnchorLinkNode *tempAnchor = p;
-    int row = 0;
+    int row = 4;
 
-    display.clearDisplay();
-    display.setTextColor(SSD1306_WHITE);
-
-    // if (tempAnchor->next == NULL) {
-    //     display.setTextSize(1);
-    //     display.setCursor(0, row++);
-    //     display.print("No Anchor");
-    // }
+    if (tempAnchor->next == NULL) {
+        display.setTextSize(1);
+        display.setCursor(0, row++ * 8);
+        display.print("No Anchor");
+    }
 
     while (tempAnchor->next != NULL) {
         tempAnchor = tempAnchor->next;
 
         char c[30];
-        sprintf(c, "%X  %.2f  %.1f dbm", tempAnchor->anchor_addr, tempAnchor->range, tempAnchor->dbm);
+        sprintf(c, "%X  %.2f  %d dbm", tempAnchor->anchor_addr, tempAnchor->range, int(tempAnchor->dbm));
 
         display.setTextSize(1);
-        display.setCursor(0, row++ * 16); // Start at top-left corner
+        display.setCursor(0, row++ * 8); // Start at top-left corner
         display.print(c);
 
-        if (row >= 3) { 
+        if (row >= 8) { 
             break;
         }
     }
 
+    return;
+}
 
+void display_ir(PuceLinkNode *p)
+{
     struct PuceLinkNode *tempPuce = ir_data;
+    int gridPos = 0;
 
+    // Affichage du chrono du tour en cours
+    char c[30];
+
+    display.setTextSize(1);
+    display.setCursor(64 * (gridPos % 2), 8 * int(gridPos++ / 2));
+    sprintf(c, "Lap: %.1f", irReceiver.getCurrentClockLap() / 1000.);
+    display.print(c);
+
+    display.setTextSize(1);
+    display.setCursor(64 * (gridPos % 2), 8 * int(gridPos++ / 2));
+    sprintf(c, "Sec: %.1f", irReceiver.getCurrentClockSector() / 1000.);
+    display.print(c);
+
+    // Affichage des temps des secteurs et du tour en cours
     while (tempPuce->next != NULL) {
         tempPuce = tempPuce->next;
 
         char c[30];
-        sprintf(c, "%d  %d", int(tempPuce->puce), tempPuce->time);
+        if (tempPuce->puce == Puce::Finish)
+            sprintf(c, "L %.2f", tempPuce->time / 1000.);
+        else
+            sprintf(c, "%d %.2f", int(tempPuce->puce), tempPuce->time / 1000.);
 
         display.setTextSize(1);
-        display.setCursor(0, row++ * 16); // Start at top-left corner
+        display.setCursor(64 * (gridPos % 2), 8 * int(gridPos++ / 2)); // Start at top-left corner
         display.print(c);
 
-        if (row >= 6) { 
+        if (gridPos >= 6)
             break;
-        }
     }
 
-    delay(100);
-    display.display();
+
     return;
 }

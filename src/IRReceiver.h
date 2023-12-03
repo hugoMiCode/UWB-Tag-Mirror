@@ -34,6 +34,20 @@ public:
     uint8_t getSectorFlag() {
         return sectorFlag;
     };
+
+    unsigned long getCurrentClockSector() {
+        if (isActive)
+            return millis() - sectorTime;
+
+        return 0;
+    };
+
+    unsigned long getCurrentClockLap() {
+        if (isActive)
+            return millis() - lapTime;
+
+        return 0;
+    };
     
 
     static void attachNewStart(void (*handleNewStart)()) {
