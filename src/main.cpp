@@ -11,8 +11,6 @@
 #include "Emitter.h"
 
 
-#define SERIAL_DEBUG
-
 #define SPI_SCK  18
 #define SPI_MISO 19
 #define SPI_MOSI 23
@@ -60,7 +58,7 @@ void setup()
     // init the configuration
     SPI.begin(SPI_SCK, SPI_MISO, SPI_MOSI);
     DW1000Ranging.initCommunication(UWB_RST, UWB_SS, UWB_IRQ); // Reset, CS, IRQ pin
-    // define the sketch as anchor. It will be great to dynamically change the type of module
+
     DW1000Ranging.attachNewRange([](){
         fresh_link(uwb_data, DW1000Ranging.getDistantDevice()->getShortAddress(), DW1000Ranging.getDistantDevice()->getRange(), DW1000Ranging.getDistantDevice()->getRXPower());
     });
@@ -95,16 +93,17 @@ void setup()
 
     irReceiver.attachNewLap([](int temps) {
         // TODO On doit partager les informations avec emitter
+        // TODO eset les temps des secteurs apres les avoir envoyés avec la class Emiter
+
         fresh_link(ir_data, Puce::Finish, temps);
 
-        // On supprime les secteurs qui n'ont pas été détectés
         uint8_t sectorFlag = irReceiver.getSectorFlag();
 
-        for (uint i = 1; i < 8; i++) {
-            if ((sectorFlag & (1 << i)) == 0) {
-                delete_link(ir_data, Puce(i));
-            }
-        }
+        for (uint i = 1; i < 4; i++)
+            if ((sectorFlag & (1 << i)) == 0)
+                delete_link(ir_data, Puce(i)); // On supprime les secteurs qui n'ont pas été détectés
+            else
+                fresh_link(ir_data, Puce(i), 0); // On reset le temps des secteurs qui ont été détectés
     });
 
     irReceiver.attachNewSector([](Puce puce, int temps) {

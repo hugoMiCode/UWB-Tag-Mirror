@@ -89,7 +89,7 @@ private:
     static uint8_t validBuffer;
     static uint8_t bufferPosition;
 
-    static bool puceDetected;
+    static bool detectedPuceFlag;
     static Puce pucePassed;
     static unsigned long puceTime;
     static uint8_t sectorFlag;

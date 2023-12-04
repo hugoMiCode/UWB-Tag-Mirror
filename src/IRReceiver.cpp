@@ -12,7 +12,7 @@ uint8_t IRReceiver::signalBuffer;
 uint8_t IRReceiver::validBuffer;
 uint8_t IRReceiver::bufferPosition;
 
-bool IRReceiver::puceDetected;
+bool IRReceiver::detectedPuceFlag;
 Puce IRReceiver::pucePassed;
 unsigned long IRReceiver::puceTime;
 uint8_t IRReceiver::sectorFlag;
@@ -71,8 +71,8 @@ void IRReceiver::setupInterrupt()
         pucePassed = decodePuceBuffer();
 
         if (pucePassed != Puce::None) {
-            puceDetected = true;
             puceTime = millis();
+            detectedPuceFlag = true;
         }
         // On gère le cas ou la puce est None dans la loop (on est pas pressé) 
     }, CHANGE);
@@ -82,17 +82,18 @@ void IRReceiver::setupInterrupt()
 
 void IRReceiver::loop()
 {
+    // On est actif mais on est en cooldown -> on ne fait rien
     if (isActive && millis() - sectorTime < MIN_SECTOR_TIME_MS)
         return;
-    else if (!interruptEnabled)
+    else if (!interruptEnabled) // On sort du cooldown -> on peut réactiver les interruptions pour détecter une puce
         setupInterrupt();
 
     
     // aucune puce détectée -> on ne fait rien
-    if (!puceDetected)
+    if (!detectedPuceFlag)
         return;
 
-    puceDetected = false;
+    detectedPuceFlag = false;
 
     if (pucePassed == Puce::None) {
         clearBuffer();
@@ -176,7 +177,7 @@ void IRReceiver::decodeBitHigh()
 void IRReceiver::decodeBitLow()
 {
     if (abs((int32_t)lowTime - LOW_SHORT_TIME) < 100) {
-        validBuffer |= bufferPosition;
+        validBuffer |= bufferPosition; // on met le bit à 1
 
         if (LOW_SHORT_BIT)
             signalBuffer |= bufferPosition; // on met le bit à 1
