@@ -55,7 +55,7 @@ bool Emitter::tryToConnectToHost()
 #ifndef SERIAL_DEBUG
     Serial.println("Triying to connect to host");
 #endif
-    if (client.connect(host, port)) {
+    if (client.connect(host, port)) { 
     #ifndef SERIAL_DEBUG
         Serial.println("Connected to host");
     #endif
@@ -94,4 +94,14 @@ bool Emitter::isConnectedToWifi()
 IPAddress Emitter::getLocalIP()
 {
     return WiFi.localIP();
+}
+
+char *Emitter::getSSID()
+{
+    return ssid;
+}
+
+char *Emitter::getPassword()
+{
+    return password;
 }

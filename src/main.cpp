@@ -24,7 +24,7 @@
 
 
 #define TAG_ADDR "7D:00:22:EA:82:60:3B:9B"
-#define IR_RECEIVER_PIN 26
+#define IR_RECEIVER_PIN 36
 
 
 
@@ -71,7 +71,7 @@ void setup()
         delete_link(uwb_data, device->getShortAddress());
     });
 
-    // we start the module as a tag
+
     // DW1000Ranging.startAsTag((char*)TAG_ADDR, DW1000.MODE_LONGDATA_RANGE_LOWPOWER);
     DW1000Ranging.startAsTag((char*)TAG_ADDR, DW1000.MODE_SHORTDATA_FAST_LOWPOWER);
     // DW1000Ranging.startAsTag((char*)TAG_ADDR, DW1000.MODE_LONGDATA_FAST_LOWPOWER);
@@ -92,9 +92,6 @@ void setup()
     });
 
     irReceiver.attachNewLap([](int temps) {
-        // TODO On doit partager les informations avec emitter
-        // TODO eset les temps des secteurs apres les avoir envoyés avec la class Emiter
-
         fresh_link(ir_data, Puce::Finish, temps);
 
         uint8_t sectorFlag = irReceiver.getSectorFlag();
@@ -116,17 +113,70 @@ void setup()
         fresh_link(ir_data, puce, temps);
     });
 
+    display.clearDisplay();
+    display.setTextSize(1);
+    display.setTextColor(SSD1306_WHITE);
+    display.setCursor(0, 0);
+    display.println("Connection to wifi");
+    char c0[30];
+    display.setCursor(0, 8);
+    sprintf(c0, "SSID: %s", emitter.getSSID());
+    display.println(c0);
+    display.setCursor(0, 16);
+    sprintf(c0, "Password: %s", emitter.getPassword());
+    display.println(c0);
+    display.display();
 
     emitter.tryToConnectToWifi();
+
+
+    delay(2000); // Replace sleep(2) with delay(2000)
 
     if (emitter.isConnectedToWifi()) {
         Serial.print("Connected to wifi, IP address: ");
         Serial.println(emitter.getLocalIP().toString());
+
+        display.clearDisplay();
+        display.setTextSize(1);
+        display.setTextColor(SSD1306_WHITE);
+        display.setCursor(0, 0);
+        display.println("Connected to wifi");
+        display.setCursor(0, 8);
+        char c1[30];
+        sprintf(c1, "IP: %s", emitter.getLocalIP().toString());
+        display.println(c1);
+        display.display();
     } else {
         Serial.println("Not connected to wifi");
+
+        display.clearDisplay();
+        display.setTextSize(1);
+        display.setTextColor(SSD1306_WHITE);
+        display.setCursor(0, 0);
+        display.println("Not connected to wifi");
+        display.display();
     }
 
-    emitter.tryToConnectToHost();
+    sleep(2);
+
+    if (emitter.tryToConnectToHost()) {
+        display.clearDisplay();
+        display.setTextSize(1);
+        display.setTextColor(SSD1306_WHITE);
+        display.setCursor(0, 0);
+        display.println("Connected to host");
+        display.display();
+    }
+    else {
+        display.clearDisplay();
+        display.setTextSize(1);
+        display.setTextColor(SSD1306_WHITE);
+        display.setCursor(0, 0);
+        display.println("Not connected to host");
+        display.display();
+    }
+
+    sleep(2);
 
 
     display.clearDisplay(); 
@@ -143,7 +193,7 @@ void loop()
     irReceiver.loop();
     DW1000Ranging.loop();
 
-    if ((millis() - runtime) > 100) {
+    if ((millis() - runtime) > 200) {
 
         display.clearDisplay();
         display_uwb(uwb_data);
@@ -155,10 +205,10 @@ void loop()
         // print_link(uwb_data);
         // print_link(ir_data);
 
-        // make_link_json(uwb_data, &all_json);
+        make_link_json(uwb_data, &all_json);
         // make_link_json(ir_data, &all_json);
 
-        // emitter.send((char*)all_json.c_str());
+        emitter.send((char*)all_json.c_str());
 
 
         runtime = millis();
