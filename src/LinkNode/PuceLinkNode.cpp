@@ -139,25 +139,25 @@ void delete_link(PuceLinkNode *p, Puce puce)
     return;
 }
 
-void make_link_json(PuceLinkNode *p, String *s)
+void make_link_json(PuceLinkNode *p, String *link)
 {
 #ifdef SERIAL_DEBUG
     Serial.println("make_link_json");
 #endif
-    *s = "{\"PuceLink\":[";
+    *link = "{\"PuceLink\":[";
     struct PuceLinkNode *temp = p;
 
     while (temp->next != NULL) {
         temp = temp->next;
 
-        char c[30];
-        sprintf(c, "{\"L\":\"%d\",\"P\":\"%d\",\"T\":\"%d\"}",int(temp->lap) , int(temp->puce), temp->time);
-        *s += c;
+        char c[50];
+        sprintf(c, "{\"L\":\"%2d\",\"P\":\"%2d\",\"T\":\"%6d\"}", temp->lap, int(temp->puce), temp->time);
+        *link += c;
 
         if (temp->next != NULL)
-            *s += ",";
+            *link += ",";
     }
-    *s += "]}";
+    *link += "]}";
 
     return;
 }

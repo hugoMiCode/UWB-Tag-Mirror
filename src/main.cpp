@@ -27,11 +27,8 @@
 #define IR_RECEIVER_PIN 36
 
 
-
-String all_json = "";
-
-struct AnchorLinkNode *uwb_data;
-struct PuceLinkNode *ir_data;
+struct AnchorLinkNode *uwb_data = nullptr;
+struct PuceLinkNode *ir_data = nullptr;
 
 Adafruit_SSD1306 display(128, 64, &Wire, -1);
 IRReceiver irReceiver(IR_RECEIVER_PIN);
@@ -206,7 +203,8 @@ void loop()
         // print_link(ir_data);
 
         // make_link_json(uwb_data, &all_json);
-        make_link_json(ir_data, &all_json);
+        String all_json = "";
+        make_link_json(ir_data, &all_json); /// ca crash ici !!
 
         emitter.send((char*)all_json.c_str());
 
