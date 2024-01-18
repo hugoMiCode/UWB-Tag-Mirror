@@ -1,7 +1,7 @@
 #include "IRReceiver.h"
 
 
-int IRReceiver::pinNumber;
+int IRReceiver::irInputPin;
 bool IRReceiver::interruptEnabled;
 
 unsigned long IRReceiver::startTime;
@@ -19,17 +19,18 @@ uint8_t IRReceiver::sectorFlag;
 
 unsigned long IRReceiver::sectorTime;
 unsigned long IRReceiver::lapTime;
+uint32_t IRReceiver::lapNumber;
 
-bool IRReceiver::isActive;
+bool IRReceiver::isRacing;
 
 
 void (*IRReceiver::_handleNewStart)() = nullptr;
-void (*IRReceiver::_handleNewLap)(int) = nullptr;
-void (*IRReceiver::_handleNewSector)(Puce, int) = nullptr;
+void (*IRReceiver::_handleNewLap)(int, int) = nullptr;
+void (*IRReceiver::_handleNewSector)(Puce, int, int) = nullptr;
 
 
 IRReceiver::IRReceiver(int pinNum) {
-    pinNumber = pinNum;
+    irInputPin = pinNum;
     interruptEnabled = false;
 
     startTime = 0;
@@ -43,8 +44,9 @@ IRReceiver::IRReceiver(int pinNum) {
 
     sectorTime = 0;
     lapTime = 0;
+    lapNumber = 0;
 
-    isActive = false;
+    isRacing = false;
 }
 
 IRReceiver::~IRReceiver()
@@ -53,8 +55,8 @@ IRReceiver::~IRReceiver()
 
 void IRReceiver::setupInterrupt()
 {
-    attachInterrupt(digitalPinToInterrupt(pinNumber), []() {
-        if (digitalRead(pinNumber) == LOW) {
+    attachInterrupt(digitalPinToInterrupt(irInputPin), []() {
+        if (digitalRead(irInputPin) == LOW) {
             highTime = micros() - startTime;
             startTime = micros();
 
@@ -83,7 +85,7 @@ void IRReceiver::setupInterrupt()
 void IRReceiver::loop()
 {
     // On est actif mais on est en cooldown -> on ne fait rien
-    if (isActive && millis() - sectorTime < MIN_SECTOR_TIME_MS)
+    if (isRacing && millis() - sectorTime < MIN_SECTOR_TIME_MS)
         return;
     else if (!interruptEnabled) // On sort du cooldown -> on peut réactiver les interruptions pour détecter une puce
         setupInterrupt();
@@ -101,27 +103,29 @@ void IRReceiver::loop()
     }
 
     // on passe un secteur avant de passer la ligne de départ -> on ne fait rien
-    if (pucePassed != Puce::Finish && !isActive) 
+    if (pucePassed != Puce::Finish && !isRacing) 
         return;
 
 
     // on a détecté une puce mais on ne l'a pas encore traitée
 
 
-    detachInterrupt(digitalPinToInterrupt(pinNumber));
+    detachInterrupt(digitalPinToInterrupt(irInputPin));
     interruptEnabled = false;
     clearBuffer();
 
 
+    // On vient de passer la ligne d'arrivée/départ
     if (pucePassed == Puce::Finish) {
-        if (!isActive) { // on vient de passer la ligne de départ pour la premiere fois
-            isActive = true;
+        if (!isRacing) { // On vient de passer la ligne de départ pour la premiere fois
+            isRacing = true;
+            lapNumber = 1;
 
             if (_handleNewStart != nullptr)
                 _handleNewStart();
         }
         else if (_handleNewLap != nullptr)
-            _handleNewLap(puceTime - lapTime);
+            _handleNewLap(puceTime - lapTime, ++lapNumber);
 
         sectorTime = puceTime;
         lapTime = puceTime;
@@ -133,7 +137,7 @@ void IRReceiver::loop()
     }
 
     if (_handleNewSector != nullptr)
-        _handleNewSector(pucePassed, puceTime - sectorTime);
+        _handleNewSector(pucePassed, puceTime - sectorTime, lapNumber);
 
     // On lève le flag de la puce qui vient d'être détectée
     sectorFlag |= (1 << (uint8_t)pucePassed);

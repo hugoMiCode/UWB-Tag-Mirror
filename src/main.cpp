@@ -88,11 +88,11 @@ void setup()
 
     irReceiver.attachNewStart([]() {
         reset_link(ir_data);
-        add_link(ir_data, Puce::Finish, 0);
+        add_link(ir_data, Puce::Finish, 0, 1); // On est dans le premier tour
     });
 
-    irReceiver.attachNewLap([](int temps) {
-        fresh_link(ir_data, Puce::Finish, temps);
+    irReceiver.attachNewLap([](int temps, int lap) {
+        fresh_link(ir_data, Puce::Finish, temps, lap);
 
         uint8_t sectorFlag = irReceiver.getSectorFlag();
 
@@ -100,17 +100,17 @@ void setup()
             if ((sectorFlag & (1 << i)) == 0)
                 delete_link(ir_data, Puce(i)); // On supprime les secteurs qui n'ont pas été détectés
             else
-                fresh_link(ir_data, Puce(i), 0); // On reset le temps des secteurs qui ont été détectés
+                fresh_link(ir_data, Puce(i), 0, 0); // On reset le temps des secteurs qui ont été détectés
     });
 
-    irReceiver.attachNewSector([](Puce puce, int temps) {
+    irReceiver.attachNewSector([](Puce puce, int temps, int lap) {
         // Si la puce n'est pas dans le link on l'ajoute
         if (find_link(ir_data, puce) == nullptr) {
-            add_link(ir_data, puce, temps);
+            add_link(ir_data, puce, temps, lap);
             return;
         }
 
-        fresh_link(ir_data, puce, temps);
+        fresh_link(ir_data, puce, temps, lap);
     });
 
     display.clearDisplay();
@@ -205,8 +205,8 @@ void loop()
         // print_link(uwb_data);
         // print_link(ir_data);
 
-        make_link_json(uwb_data, &all_json);
-        // make_link_json(ir_data, &all_json);
+        // make_link_json(uwb_data, &all_json);
+        make_link_json(ir_data, &all_json);
 
         emitter.send((char*)all_json.c_str());
 

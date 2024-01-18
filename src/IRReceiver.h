@@ -22,6 +22,8 @@ enum class Puce{
   Sector3 = 0b11
 };
 
+// Il manque a la class le fait de pouvoir reset la course et d'en recommencer une nouvelle
+// Il faudrait juste mettre isActive a false et faire un reset des variables
 
 class IRReceiver {
 public:
@@ -36,14 +38,14 @@ public:
     };
 
     unsigned long getCurrentClockSector() {
-        if (isActive)
+        if (isRacing)
             return millis() - sectorTime;
 
         return 0;
     };
 
     unsigned long getCurrentClockLap() {
-        if (isActive)
+        if (isRacing)
             return millis() - lapTime;
 
         return 0;
@@ -54,11 +56,11 @@ public:
         _handleNewStart = handleNewStart;
     };
 
-    static void attachNewLap(void (*handleNewLap)(int)) {
+    static void attachNewLap(void (*handleNewLap)(int, int)) {
         _handleNewLap = handleNewLap;
     };
     
-    static void attachNewSector(void (*handleNewSector)(Puce, int)) {
+    static void attachNewSector(void (*handleNewSector)(Puce, int, int)) {
         _handleNewSector = handleNewSector;
     };
 
@@ -68,8 +70,8 @@ private:
 
     // handler for new puce
     static void (*_handleNewStart)();
-    static void (*_handleNewLap)(int);
-    static void (*_handleNewSector)(Puce, int);
+    static void (*_handleNewLap)(int, int);
+    static void (*_handleNewSector)(Puce, int, int);
 
     // static methods for interrupt
     static void decodeBitHigh();
@@ -78,7 +80,7 @@ private:
 
 
 private:
-    static int pinNumber;
+    static int irInputPin;
     static bool interruptEnabled;
 
     static unsigned long startTime;
@@ -96,6 +98,7 @@ private:
 
     static unsigned long sectorTime;
     static unsigned long lapTime;
+    static uint32_t lapNumber;
 
-    static bool isActive;
+    static bool isRacing;
 };

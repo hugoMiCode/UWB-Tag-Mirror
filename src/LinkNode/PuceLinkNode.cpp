@@ -11,11 +11,12 @@ struct PuceLinkNode *init_puceLinkNode()
     p->next = NULL;
     p->puce = Puce::None;
     p->time = 0;
+    p->lap = 0;
 
     return p;
 }
 
-void add_link(PuceLinkNode * p, Puce puce, int time)
+void add_link(PuceLinkNode * p, Puce puce, int time, int lap)
 {
 #ifdef SERIAL_DEBUG
     Serial.println("add_link");
@@ -29,6 +30,7 @@ void add_link(PuceLinkNode * p, Puce puce, int time)
     PuceLinkNode *a = (PuceLinkNode *)malloc(sizeof(PuceLinkNode));
     a->puce = puce;
     a->time = time;
+    a->lap = lap;
     a->next = NULL;
 
     //Add puce to end of struct MyLink
@@ -71,7 +73,7 @@ struct PuceLinkNode *find_link(PuceLinkNode *p, Puce puce)
     return nullptr;
 }
 
-void fresh_link(PuceLinkNode *p, Puce puce, int time)
+void fresh_link(PuceLinkNode *p, Puce puce, int time, int lap)
 {
 #ifdef SERIAL_DEBUG
     Serial.println("fresh_link");
@@ -86,6 +88,7 @@ void fresh_link(PuceLinkNode *p, Puce puce, int time)
     }
 
     temp->time = time;
+    temp->lap = lap;
 
     return;
 }
@@ -148,7 +151,7 @@ void make_link_json(PuceLinkNode *p, String *s)
         temp = temp->next;
 
         char c[30];
-        sprintf(c, "{\"P\":\"%d\",\"T\":\"%d\"},", int(temp->puce), temp->time);
+        sprintf(c, "{\"L\":\"%d\",\"P\":\"%d\",\"T\":\"%d\"}",int(temp->lap) , int(temp->puce), temp->time);
         *s += c;
 
         if (temp->next != NULL)
