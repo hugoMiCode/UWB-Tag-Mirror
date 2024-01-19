@@ -151,7 +151,11 @@ void make_link_json(PuceLinkNode *p, String *link)
         temp = temp->next;
 
         char c[50];
-        sprintf(c, "{\"L\":\"%2d\",\"P\":\"%2d\",\"T\":\"%6d\"}", temp->lap, int(temp->puce), temp->time);
+        if (temp->puce == Puce::Finish)
+            sprintf(c, "{\"L\":\"%2d\",\"P\":\"%2d\",\"T\":\"%6d\"}", temp->lap, int(temp->puce), temp->time);
+        else
+            sprintf(c, "{\"P\":\"%2d\",\"T\":\"%6d\"}", int(temp->puce), temp->time);
+        
         *link += c;
 
         if (temp->next != NULL)
