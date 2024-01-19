@@ -127,7 +127,7 @@ void setup()
     emitter.tryToConnectToWifi();
 
 
-    delay(2000); // Replace sleep(2) with delay(2000)
+    delay(2000);
 
     if (emitter.isConnectedToWifi()) {
         Serial.print("Connected to wifi, IP address: ");
@@ -195,16 +195,12 @@ void loop()
         display.clearDisplay();
         display_uwb(uwb_data);
         display_ir(ir_data);
-        // display.drawFastHLine(0, 32, 128, SSD1306_WHITE);
-        // display.drawPixel(64, 20, SSD1306_WHITE);
         display.display();
 
-        // print_link(uwb_data);
-        // print_link(ir_data);
-
+        // TO DO : Rajouter l'addresse du tag dans le protocole 
         // make_link_json(uwb_data, &all_json);
         String all_json = "";
-        make_link_json(ir_data, &all_json); /// ca crash ici !!
+        make_link_json(ir_data, &all_json); 
 
         emitter.send((char*)all_json.c_str());
 
