@@ -22,8 +22,6 @@ enum class Puce{
   Sector3 = 0b11
 };
 
-// Il manque a la class le fait de pouvoir reset la course et d'en recommencer une nouvelle
-// Il faudrait juste mettre isActive a false et faire un reset des variables
 
 class IRReceiver {
 public:
@@ -32,6 +30,7 @@ public:
 
     void setupInterrupt();
     void loop();
+    void reset(); // Permet de finir la course en cours et de recommencer une nouvelle
 
     uint8_t getSectorFlag() {
         return sectorFlag;
@@ -51,6 +50,9 @@ public:
         return 0;
     };
     
+    static void attachNewReset(void (*handleNewReset)()) {
+        _handleNewReset = handleNewReset;
+    };
 
     static void attachNewStart(void (*handleNewStart)()) {
         _handleNewStart = handleNewStart;
@@ -69,6 +71,7 @@ private:
     void clearBuffer();
 
     // handler for new puce
+    static void (*_handleNewReset)();
     static void (*_handleNewStart)();
     static void (*_handleNewLap)(int, int);
     static void (*_handleNewSector)(Puce, int, int);

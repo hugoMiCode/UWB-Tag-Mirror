@@ -13,6 +13,7 @@ public:
     bool tryToConnectToHost(char* host, int port);
 
     void send(char* data);
+    String read();
 
     bool isConnectedToWifi();
 
@@ -33,7 +34,7 @@ private:
 
     // char* host = (char*)WiFi.gatewayIP().toString().c_str();
     // char* host = (char*)"192.168.137.1";
-    char* host = (char*)"192.168.1.94";
+    char* host = (char*)"192.168.1.61";
     int port = 82;
 
     const unsigned long timeout = 5000; // Timeout de la connection wifi en millisecondes

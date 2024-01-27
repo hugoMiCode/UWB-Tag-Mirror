@@ -24,6 +24,7 @@ uint32_t IRReceiver::lapNumber;
 bool IRReceiver::isRacing;
 
 
+void (*IRReceiver::_handleNewReset)() = nullptr;
 void (*IRReceiver::_handleNewStart)() = nullptr;
 void (*IRReceiver::_handleNewLap)(int, int) = nullptr;
 void (*IRReceiver::_handleNewSector)(Puce, int, int) = nullptr;
@@ -143,6 +144,20 @@ void IRReceiver::loop()
     sectorFlag |= (1 << (uint8_t)pucePassed);
 
     sectorTime = puceTime;
+}
+
+void IRReceiver::reset()
+{
+    isRacing = false;
+    lapNumber = 0;
+    sectorFlag = 0b0;
+    sectorTime = 0;
+    lapTime = 0;
+    detectedPuceFlag = false;
+    clearBuffer();
+
+    if (_handleNewReset != nullptr)
+        _handleNewReset();
 }
 
 void IRReceiver::clearBuffer()

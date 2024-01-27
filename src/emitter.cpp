@@ -21,7 +21,7 @@ Emitter::~Emitter()
 
 bool Emitter::tryToConnectToWifi()
 {
-#ifndef SERIAL_DEBUG
+#ifdef SERIAL_DEBUG
     Serial.println("Triying to connect to wifi");
 #endif
     WiFi.mode(WIFI_STA);
@@ -32,12 +32,12 @@ bool Emitter::tryToConnectToWifi()
 
     while (WiFi.status() != WL_CONNECTED && millis() - startTime < timeout) {
         delay(500);
-    #ifndef SERIAL_DEBUG
+    #ifdef SERIAL_DEBUG
         Serial.print(".");
     #endif
     }
     
-#ifndef SERIAL_DEBUG
+#ifdef SERIAL_DEBUG
     Serial.println("Connected to wifi");
 #endif
     return false;
@@ -52,11 +52,11 @@ bool Emitter::tryToConnectToWifi(char *ssid, char *password)
 
 bool Emitter::tryToConnectToHost()
 {
-#ifndef SERIAL_DEBUG
+#ifdef SERIAL_DEBUG
     Serial.println("Triying to connect to host");
 #endif
     if (client.connect(host, port)) { 
-    #ifndef SERIAL_DEBUG
+    #ifdef SERIAL_DEBUG
         Serial.println("Connected to host");
     #endif
         client.print(String("GET /") + " HTTP/1.1\r\n" +
@@ -80,10 +80,28 @@ void Emitter::send(char *data)
 {
     if (client.connected()) {
         client.print(data);
-    #ifndef SERIAL_DEBUG
+    #ifdef SERIAL_DEBUG
         Serial.println("UDP send");
     #endif
     }
+}
+
+String Emitter::read()
+{
+    if (client.connected()) {
+        String line = "";
+
+        while (client.available()) {
+            line = client.readStringUntil('\n');
+        #ifdef SERIAL_DEBUG
+            Serial.println(line);
+        #endif
+        }
+
+        return line;
+    }
+
+    return "";
 }
 
 bool Emitter::isConnectedToWifi()
