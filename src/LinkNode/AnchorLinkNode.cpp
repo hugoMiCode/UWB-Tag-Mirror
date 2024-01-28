@@ -5,7 +5,7 @@
 struct AnchorLinkNode *init_anchorLinkNode()
 {
 #ifdef SERIAL_DEBUG
-    Serial.println("init_link");
+    Serial.println("init_anchorLink");
 #endif
     struct AnchorLinkNode *p = (struct AnchorLinkNode *)malloc(sizeof(struct AnchorLinkNode));
     p->next = NULL;
@@ -18,7 +18,7 @@ struct AnchorLinkNode *init_anchorLinkNode()
 void add_link(struct AnchorLinkNode *p, uint16_t addr)
 {
 #ifdef SERIAL_DEBUG
-    Serial.println("add_link");
+    Serial.println("add_anchorLink");
 #endif
     struct AnchorLinkNode *temp = p;
 
@@ -41,18 +41,18 @@ void add_link(struct AnchorLinkNode *p, uint16_t addr)
 struct AnchorLinkNode *find_link(struct AnchorLinkNode *p, uint16_t addr)
 {
 #ifdef SERIAL_DEBUG
-    Serial.println("find_link");
+    Serial.println("find_anchorLink");
 #endif
     if (addr == 0) {
     #ifdef SERIAL_DEBUG
-        Serial.println("find_link:Input addr is 0");
+        Serial.println("find_anchorLink:Input addr is 0");
     #endif
         return NULL;
     }
 
     if (p->next == NULL) {
     #ifdef SERIAL_DEBUG
-        Serial.println("find_link:Link is empty");
+        Serial.println("find_anchorLink:Link is empty");
     #endif
         return NULL;
     }
@@ -67,7 +67,7 @@ struct AnchorLinkNode *find_link(struct AnchorLinkNode *p, uint16_t addr)
     }
 
 #ifdef SERIAL_DEBUG
-    Serial.println("find_link:Can't find addr");
+    Serial.println("find_anchorLink:Can't find addr");
 #endif
     return NULL;
 }
@@ -75,13 +75,13 @@ struct AnchorLinkNode *find_link(struct AnchorLinkNode *p, uint16_t addr)
 void fresh_link(struct AnchorLinkNode *p, uint16_t addr, float range, float dbm)
 {
 #ifdef SERIAL_DEBUG
-    Serial.println("fresh_link");
+    Serial.println("fresh_anchorLink");
 #endif
     struct AnchorLinkNode *temp = find_link(p, addr);
 
     if (temp == NULL) {
     #ifdef SERIAL_DEBUG
-        Serial.println("fresh_link:Can't find addr");
+        Serial.println("fresh_anchorLink:Can't find addr");
     #endif
         return;
     }
@@ -95,7 +95,7 @@ void fresh_link(struct AnchorLinkNode *p, uint16_t addr, float range, float dbm)
 void print_link(struct AnchorLinkNode *p)
 {
 #ifdef SERIAL_DEBUG
-    Serial.println("print_link");
+    Serial.println("print_anchorLink");
 #endif
     struct AnchorLinkNode *temp = p;
 
@@ -115,7 +115,7 @@ void print_link(struct AnchorLinkNode *p)
 void delete_link(struct AnchorLinkNode *p, uint16_t addr)
 {
 #ifdef SERIAL_DEBUG
-    Serial.println("delete_link");
+    Serial.println("delete_anchorLink");
 #endif
     if (addr == 0)
         return;
@@ -139,10 +139,11 @@ void delete_link(struct AnchorLinkNode *p, uint16_t addr)
 void make_link_json(struct AnchorLinkNode *p, String *s)
 {
 #ifdef SERIAL_DEBUG
-    Serial.println("make_link_json");
+    Serial.println("make_anchorLink_json");
 #endif
-    *s = "{\"AnchorLink\":[";
     struct AnchorLinkNode *temp = p;
+    
+    *s = "{\"AnchorLink\":[";
 
     while (temp->next != NULL) {
         temp = temp->next;

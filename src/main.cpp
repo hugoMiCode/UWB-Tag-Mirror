@@ -12,6 +12,7 @@
 #include "MessageDecoder.h"
 
 
+
 #define SPI_SCK  18
 #define SPI_MISO 19
 #define SPI_MOSI 23
@@ -23,9 +24,9 @@
 #define I2C_SDA 4
 #define I2C_SCL 5
 
-
 #define TAG_ADDR "7D:00:22:EA:82:60:3B:9B"
 #define IR_RECEIVER_PIN 36
+
 
 
 struct AnchorLinkNode *uwb_data = nullptr;
@@ -39,11 +40,11 @@ MessageDecoder messageDecoder;
 
 
 
-void init_irReceiver();
-void init_uwb();
 void init_display();
+void init_uwb();
+void init_irReceiver();
 void init_emitter();
-void initMessageDecoder();
+void init_messageDecoder();
 
 void display_uwb(struct AnchorLinkNode *p);
 void display_ir(struct PuceLinkNode *p);
@@ -53,18 +54,133 @@ void setup()
 {
     Serial.begin(115200);
 
+    uwb_data = init_anchorLinkNode();
+    ir_data = init_puceLinkNode();
 
     init_display();
     init_uwb();
     init_irReceiver();
-    init_emitter(); // Fonction a "remplir" pour l'initialisation de l'emetteur sans display
-    initMessageDecoder();
+    init_emitter();
+    init_messageDecoder();
+}
 
-    uwb_data = init_anchorLinkNode();
-    ir_data = init_puceLinkNode();
+long int runtime = 0;
+
+void loop()
+{
+    irReceiver.loop();
+    DW1000Ranging.loop();
+
+    // test pour voir comment je peux récupérer les données depuis le serveur
+    String message = emitter.read();
+
+    if (message != "") {
+        Command cmd = messageDecoder.decodeMessage(message.c_str());
+    }
 
 
-    // *** Initialisation de l’émetteur ***
+    // Il faut envoyer les données moins souvent pour ne pas saturer le serveur
+    // IrReceiver devrait envoyer les données a chaque fois qu'il y a un changement
+    // UWB devrait envoyer les données a chaque fois qu'il y a un changement aussi 
+    if ((millis() - runtime) > 200) {
+
+        display.clearDisplay();
+        display_uwb(uwb_data);
+        display_ir(ir_data);
+        display.display();
+
+        // TO DO : Rajouter l’adresse du tag dans le protocole 
+        String all_json = "";
+        make_link_json(uwb_data, &all_json);
+        // make_link_json(ir_data, &all_json); 
+
+        emitter.send((char*)all_json.c_str());
+
+
+        runtime = millis();
+    }
+}
+
+
+// Fonctions d'initialisation
+void init_display()
+{
+    Wire.begin(I2C_SDA, I2C_SCL);
+    delay(1000);
+    // SSD1306_SWITCHCAPVCC = generate display voltage from 3.3V internally
+    if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) { // Address 0x3C for 128x32
+        Serial.println(F("SSD1306 allocation failed"));
+        for (;;); // Don't proceed, loop forever
+    }
+}
+
+void init_irReceiver()
+{
+    irReceiver.setupInterrupt();
+
+    irReceiver.attachNewReset([]() { // On arrête la course
+        reset_link(ir_data);
+    });
+
+    irReceiver.attachNewStart([]() {
+        reset_link(ir_data);
+        add_link(ir_data, Puce::Finish, 0, 1); // On est dans le premier tour
+    });
+
+    irReceiver.attachNewLap([](int temps, int lap) {
+        fresh_link(ir_data, Puce::Finish, temps, lap);
+
+        uint8_t sectorFlag = irReceiver.getSectorFlag();
+
+        for (uint i = 1; i < 4; i++)
+            if ((sectorFlag & (1 << i)) == 0)
+                delete_link(ir_data, Puce(i)); // On supprime les secteurs qui n'ont pas été détectés
+            else
+                fresh_link(ir_data, Puce(i), 0, 0); // On reset le temps des secteurs qui ont été détectés
+    });
+
+    irReceiver.attachNewSector([](Puce puce, int temps, int lap) {
+        // Si la puce n'est pas dans le link on l'ajoute
+        if (find_link(ir_data, puce) == nullptr) {
+            add_link(ir_data, puce, temps, lap);
+            return;
+        }
+
+        fresh_link(ir_data, puce, temps, lap);
+    });
+}
+
+void init_uwb()
+{
+    SPI.begin(SPI_SCK, SPI_MISO, SPI_MOSI);
+    DW1000Ranging.initCommunication(UWB_RST, UWB_SS, UWB_IRQ); // Reset, CS, IRQ pin
+
+    DW1000Ranging.attachNewRange([](){
+        fresh_link(uwb_data, 
+            DW1000Ranging.getDistantDevice()->getShortAddress(), 
+            DW1000Ranging.getDistantDevice()->getRange(), 
+            DW1000Ranging.getDistantDevice()->getRXPower());
+    });
+
+    DW1000Ranging.attachNewDevice([](DW1000Device *device){
+        add_link(uwb_data, device->getShortAddress());
+    });
+
+    DW1000Ranging.attachInactiveDevice([](DW1000Device *device){
+        delete_link(uwb_data, device->getShortAddress());
+    });
+
+
+    // DW1000Ranging.startAsTag((char*)TAG_ADDR, DW1000.MODE_LONGDATA_RANGE_LOWPOWER);
+    DW1000Ranging.startAsTag((char*)TAG_ADDR, DW1000.MODE_SHORTDATA_FAST_LOWPOWER);
+    // DW1000Ranging.startAsTag((char*)TAG_ADDR, DW1000.MODE_LONGDATA_FAST_LOWPOWER);
+    // DW1000Ranging.startAsTag((char*)TAG_ADDR, DW1000.MODE_SHORTDATA_FAST_ACCURACY);
+    // DW1000Ranging.startAsTag((char*)TAG_ADDR, DW1000.MODE_LONGDATA_FAST_ACCURACY);
+    // DW1000Ranging.startAsTag((char*)TAG_ADDR, DW1000.MODE_LONGDATA_RANGE_ACCURACY);
+}
+
+void init_emitter()
+{
     display.clearDisplay();
     display.setTextSize(1);
     display.setTextColor(SSD1306_WHITE);
@@ -131,127 +247,9 @@ void setup()
     display.setCursor(0, 0);
     display.println("Initialisation done");
     display.display();
-    // *** Fin de l’initialisation de l’émetteur ***
 }
 
-long int runtime = 0;
-
-void loop()
-{
-    irReceiver.loop();
-    DW1000Ranging.loop();
-
-    // test pour voir comment je peux récupérer les données depuis le serveur
-    String message = emitter.read();
-
-    if (message != "") {
-        Command cmd = messageDecoder.decodeMessage(message.c_str());
-    }
-
-
-    // Il faut envoyer les données moins souvent pour ne pas saturer le serveur
-    // IrReceiver devrait envoyer les données a chaque fois qu'il y a un changement
-    // UWB devrait envoyer les données a chaque fois qu'il y a un changement aussi 
-    if ((millis() - runtime) > 200) {
-
-        display.clearDisplay();
-        display_uwb(uwb_data);
-        display_ir(ir_data);
-        display.display();
-
-        // TO DO : Rajouter l’adresse du tag dans le protocole 
-        String all_json = "";
-        make_link_json(uwb_data, &all_json);
-        // make_link_json(ir_data, &all_json); 
-
-        emitter.send((char*)all_json.c_str());
-
-
-        runtime = millis();
-    }
-}
-
-
-// Fonctions d'initialisation
-void init_irReceiver()
-{
-    irReceiver.setupInterrupt();
-
-    irReceiver.attachNewReset([]() { // On arrête la course
-        reset_link(ir_data);
-    });
-
-    irReceiver.attachNewStart([]() {
-        reset_link(ir_data);
-        add_link(ir_data, Puce::Finish, 0, 1); // On est dans le premier tour
-    });
-
-    irReceiver.attachNewLap([](int temps, int lap) {
-        fresh_link(ir_data, Puce::Finish, temps, lap);
-
-        uint8_t sectorFlag = irReceiver.getSectorFlag();
-
-        for (uint i = 1; i < 4; i++)
-            if ((sectorFlag & (1 << i)) == 0)
-                delete_link(ir_data, Puce(i)); // On supprime les secteurs qui n'ont pas été détectés
-            else
-                fresh_link(ir_data, Puce(i), 0, 0); // On reset le temps des secteurs qui ont été détectés
-    });
-
-    irReceiver.attachNewSector([](Puce puce, int temps, int lap) {
-        // Si la puce n'est pas dans le link on l'ajoute
-        if (find_link(ir_data, puce) == nullptr) {
-            add_link(ir_data, puce, temps, lap);
-            return;
-        }
-
-        fresh_link(ir_data, puce, temps, lap);
-    });
-}
-
-void init_uwb()
-{
-    SPI.begin(SPI_SCK, SPI_MISO, SPI_MOSI);
-
-    DW1000Ranging.initCommunication(UWB_RST, UWB_SS, UWB_IRQ); // Reset, CS, IRQ pin
-
-    DW1000Ranging.attachNewRange([](){
-        fresh_link(uwb_data, DW1000Ranging.getDistantDevice()->getShortAddress(), DW1000Ranging.getDistantDevice()->getRange(), DW1000Ranging.getDistantDevice()->getRXPower());
-    });
-
-    DW1000Ranging.attachNewDevice([](DW1000Device *device){
-        add_link(uwb_data, device->getShortAddress());
-    });
-
-    DW1000Ranging.attachInactiveDevice([](DW1000Device *device){
-        delete_link(uwb_data, device->getShortAddress());
-    });
-
-
-    // DW1000Ranging.startAsTag((char*)TAG_ADDR, DW1000.MODE_LONGDATA_RANGE_LOWPOWER);
-    DW1000Ranging.startAsTag((char*)TAG_ADDR, DW1000.MODE_SHORTDATA_FAST_LOWPOWER);
-    // DW1000Ranging.startAsTag((char*)TAG_ADDR, DW1000.MODE_LONGDATA_FAST_LOWPOWER);
-    // DW1000Ranging.startAsTag((char*)TAG_ADDR, DW1000.MODE_SHORTDATA_FAST_ACCURACY);
-    // DW1000Ranging.startAsTag((char*)TAG_ADDR, DW1000.MODE_LONGDATA_FAST_ACCURACY);
-    // DW1000Ranging.startAsTag((char*)TAG_ADDR, DW1000.MODE_LONGDATA_RANGE_ACCURACY);
-}
-
-void init_display()
-{
-    Wire.begin(I2C_SDA, I2C_SCL);
-    delay(1000);
-    // SSD1306_SWITCHCAPVCC = generate display voltage from 3.3V internally
-    if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) { // Address 0x3C for 128x32
-        Serial.println(F("SSD1306 allocation failed"));
-        for (;;); // Don't proceed, loop forever
-    }
-}
-
-void init_emitter()
-{
-}
-
-void initMessageDecoder()
+void init_messageDecoder()
 {
     messageDecoder.attachCmdResetRace([]() {
         irReceiver.reset();

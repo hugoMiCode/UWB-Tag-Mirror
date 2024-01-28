@@ -5,7 +5,7 @@
 struct PuceLinkNode *init_puceLinkNode()
 {
 #ifdef SERIAL_DEBUG
-    Serial.println("init_link");
+    Serial.println("init_puceLink");
 #endif
     struct PuceLinkNode *p = (struct PuceLinkNode *)malloc(sizeof(struct PuceLinkNode));
     p->next = NULL;
@@ -19,7 +19,7 @@ struct PuceLinkNode *init_puceLinkNode()
 void add_link(PuceLinkNode * p, Puce puce, int time, int lap)
 {
 #ifdef SERIAL_DEBUG
-    Serial.println("add_link");
+    Serial.println("add_puceLink");
 #endif
     PuceLinkNode *temp = p;
 
@@ -42,18 +42,18 @@ void add_link(PuceLinkNode * p, Puce puce, int time, int lap)
 struct PuceLinkNode *find_link(PuceLinkNode *p, Puce puce)
 {
 #ifdef SERIAL_DEBUG
-    Serial.println("find_link");
+    Serial.println("find_puceLink");
 #endif
     if (puce == Puce::None) {
     #ifdef SERIAL_DEBUG
-        Serial.println("find_link:Input puce is 0");
+        Serial.println("find_puceLink:Input puce is 0");
     #endif
         return NULL;
     }
 
     if (p->next == NULL) {
     #ifdef SERIAL_DEBUG
-        Serial.println("find_link:Link is empty");
+        Serial.println("find_puceLink:Link is empty");
     #endif
         return NULL;
     }
@@ -68,7 +68,7 @@ struct PuceLinkNode *find_link(PuceLinkNode *p, Puce puce)
     }
 
 #ifdef SERIAL_DEBUG
-    Serial.println("find_link:Can't find puce");
+    Serial.println("find_puceLink:Can't find puce");
 #endif
     return nullptr;
 }
@@ -76,13 +76,13 @@ struct PuceLinkNode *find_link(PuceLinkNode *p, Puce puce)
 void fresh_link(PuceLinkNode *p, Puce puce, int time, int lap)
 {
 #ifdef SERIAL_DEBUG
-    Serial.println("fresh_link");
+    Serial.println("fresh_puceLink");
 #endif
     PuceLinkNode *temp = find_link(p, puce);
     
     if (temp == NULL) {
     #ifdef SERIAL_DEBUG
-        Serial.println("fresh_link:Can't find addr");
+        Serial.println("fresh_puceLink:Can't find addr");
     #endif
         return;
     }
@@ -96,7 +96,7 @@ void fresh_link(PuceLinkNode *p, Puce puce, int time, int lap)
 void print_link(PuceLinkNode *p)
 {
 #ifdef SERIAL_DEBUG
-    Serial.println("print_link");
+    Serial.println("print_puceLink");
 #endif
     PuceLinkNode *temp = p;
     int row = 0;
@@ -118,7 +118,7 @@ void print_link(PuceLinkNode *p)
 void delete_link(PuceLinkNode *p, Puce puce)
 {
 #ifdef SERIAL_DEBUG
-    Serial.println("delete_link");
+    Serial.println("delete_puceLink");
 #endif
     if (puce == Puce::None)
         return;
@@ -142,7 +142,7 @@ void delete_link(PuceLinkNode *p, Puce puce)
 void make_link_json(PuceLinkNode *p, String *link)
 {
 #ifdef SERIAL_DEBUG
-    Serial.println("make_link_json");
+    Serial.println("make_puceLink_json");
 #endif
     *link = "{\"PuceLink\":[";
     struct PuceLinkNode *temp = p;
@@ -169,7 +169,7 @@ void make_link_json(PuceLinkNode *p, String *link)
 void reset_link(PuceLinkNode *p)
 {
 #ifdef SERIAL_DEBUG
-    Serial.println("reset_link");
+    Serial.println("reset_puceLink");
 #endif
     struct PuceLinkNode *temp = p;
 

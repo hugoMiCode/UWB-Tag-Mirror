@@ -4,12 +4,14 @@
     Commande:
     reset la course.
     démarrer une course.
+    calibrer les Anchors.
 */
 
 enum class Command {
     NONE = 0,
     RESET_RACE = 1,
     START_RACE = 2
+    // TODO: ajouter les autres commandes pour calibrer les Anchors
 };
 
 // TODO: mettre dans la class les fonctions a appeler en fonction de la commande
