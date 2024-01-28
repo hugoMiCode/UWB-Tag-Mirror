@@ -9,6 +9,7 @@
 #include "LinkNode/AnchorLinkNode.h"
 #include "LinkNode/PuceLinkNode.h"
 #include "Emitter.h"
+#include "MessageDecoder.h"
 
 
 #define SPI_SCK  18
@@ -33,6 +34,8 @@ struct PuceLinkNode *ir_data = nullptr;
 Adafruit_SSD1306 display(128, 64, &Wire, -1);
 IRReceiver irReceiver(IR_RECEIVER_PIN);
 Emitter emitter;
+MessageDecoder messageDecoder;
+
 
 
 
@@ -40,6 +43,7 @@ void init_irReceiver();
 void init_uwb();
 void init_display();
 void init_emitter();
+void initMessageDecoder();
 
 void display_uwb(struct AnchorLinkNode *p);
 void display_ir(struct PuceLinkNode *p);
@@ -54,11 +58,13 @@ void setup()
     init_uwb();
     init_irReceiver();
     init_emitter(); // Fonction a "remplir" pour l'initialisation de l'emetteur sans display
+    initMessageDecoder();
 
     uwb_data = init_anchorLinkNode();
     ir_data = init_puceLinkNode();
 
 
+    // *** Initialisation de l’émetteur ***
     display.clearDisplay();
     display.setTextSize(1);
     display.setTextColor(SSD1306_WHITE);
@@ -79,9 +85,6 @@ void setup()
     delay(2000);
 
     if (emitter.isConnectedToWifi()) {
-        Serial.print("Connected to wifi, IP address: ");
-        Serial.println(emitter.getLocalIP().toString());
-
         display.clearDisplay();
         display.setTextSize(1);
         display.setTextColor(SSD1306_WHITE);
@@ -93,8 +96,6 @@ void setup()
         display.println(c1);
         display.display();
     } else {
-        Serial.println("Not connected to wifi");
-
         display.clearDisplay();
         display.setTextSize(1);
         display.setTextColor(SSD1306_WHITE);
@@ -128,8 +129,9 @@ void setup()
     display.clearDisplay(); 
     display.setTextColor(SSD1306_WHITE);
     display.setCursor(0, 0);
-    display.println("Initialisation");
+    display.println("Initialisation done");
     display.display();
+    // *** Fin de l’initialisation de l’émetteur ***
 }
 
 long int runtime = 0;
@@ -139,6 +141,17 @@ void loop()
     irReceiver.loop();
     DW1000Ranging.loop();
 
+    // test pour voir comment je peux récupérer les données depuis le serveur
+    String message = emitter.read();
+
+    if (message != "") {
+        Command cmd = messageDecoder.decodeMessage(message.c_str());
+    }
+
+
+    // Il faut envoyer les données moins souvent pour ne pas saturer le serveur
+    // IrReceiver devrait envoyer les données a chaque fois qu'il y a un changement
+    // UWB devrait envoyer les données a chaque fois qu'il y a un changement aussi 
     if ((millis() - runtime) > 200) {
 
         display.clearDisplay();
@@ -155,13 +168,6 @@ void loop()
 
 
         runtime = millis();
-    }
-
-    // test pour voir comment je peux récupérer les données depuis le serveur
-    String commande = emitter.read();
-
-    if (commande == "reset race") {
-        irReceiver.reset(); // A tester 
     }
 }
 
@@ -243,6 +249,17 @@ void init_display()
 
 void init_emitter()
 {
+}
+
+void initMessageDecoder()
+{
+    messageDecoder.attachCmdResetRace([]() {
+        irReceiver.reset();
+    });
+
+    messageDecoder.attachCmdStartRace([]() {
+        irReceiver.start();
+    });
 }
 
 // Fonctions d'affichage

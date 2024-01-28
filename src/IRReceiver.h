@@ -30,7 +30,9 @@ public:
 
     void setupInterrupt();
     void loop();
-    void reset(); // Permet de finir la course en cours et de recommencer une nouvelle
+    void reset(); // Permet de finir la course en cours
+    // TODO: tester la fonction
+    void start(); // Permet de démarrer une course
 
     uint8_t getSectorFlag() {
         return sectorFlag;

@@ -160,6 +160,18 @@ void IRReceiver::reset()
         _handleNewReset();
 }
 
+void IRReceiver::start()
+{
+    reset();
+    isRacing = true;
+    lapNumber = 1;
+    lapTime = millis();
+    sectorTime = millis();
+
+    if (_handleNewStart != nullptr)
+        _handleNewStart();
+}
+
 void IRReceiver::clearBuffer()
 {
     signalBuffer = 0;
