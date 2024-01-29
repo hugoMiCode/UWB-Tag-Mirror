@@ -263,6 +263,10 @@ void init_messageDecoder()
 // Fonctions d'affichage
 void display_uwb(struct AnchorLinkNode *p)
 {
+    if (p == nullptr) {
+        return;
+    }
+    
     struct AnchorLinkNode *tempAnchor = p;
     int row = 4;
 
@@ -292,7 +296,11 @@ void display_uwb(struct AnchorLinkNode *p)
 
 void display_ir(PuceLinkNode *p)
 {
-    struct PuceLinkNode *tempPuce = ir_data;
+    if (p == nullptr) {
+        return;
+    }
+
+    struct PuceLinkNode *tempPuce = p;
     int gridPos = 0;
 
     // Affichage du chrono du tour en cours
